@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#087a45"><link rel="manifest" href="manifest.webmanifest">
+<title>BISP Appointment Desk</title>
+<style>
+:root{--g:#087a45;--bg:#f3f7f4;--line:#dce7df}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#17231c;font:15px system-ui,Arial}
+header{background:var(--g);color:#fff;padding:17px;position:sticky;top:0;z-index:3}
+.brand{font-size:24px;font-weight:800}.sub{font-size:12px}
+.wrap{max-width:960px;margin:auto;padding:14px}
+button,input,select,textarea{font:inherit;padding:10px;border:1px solid var(--line);border-radius:9px;background:white;width:100%;color:#17231c}
+button{background:var(--g);color:#fff;border:0;font-weight:650;cursor:pointer}
+.alt{background:#e7f2eb;color:#075c35}.danger{background:#a12a2a}
+.toolbar,.row,.actions{display:flex;gap:8px;align-items:center}.toolbar{justify-content:space-between}
+nav{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0}
+nav button{font-size:13px;background:#e3eee7;color:#155b37;padding:10px 4px}nav button.active{background:var(--g);color:#fff}
+.card{background:white;border:1px solid var(--line);border-radius:14px;padding:15px;margin:12px 0}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.stat{background:#f0f6f2;padding:13px;border-radius:12px}.num{font-size:25px;font-weight:800;color:var(--g)}
+label{display:block;font-size:13px;font-weight:650;margin:10px 0 5px}.hint,.muted{font-size:12px;color:#68766d}
+.hidden{display:none!important}.actions>*{flex:1}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.slip{border:1px dashed #63786a;padding:16px;max-width:390px;margin:10px auto;background:#fff}
+.slip h2{text-align:center;color:var(--g);margin:0}.slip .urdu-note{direction:rtl;text-align:center;font-size:15px;line-height:1.8;border-top:1px solid #ddd;margin-top:12px;padding-top:10px}
+.qr{display:flex;justify-content:center;margin:12px auto}.badge{display:inline-block;background:#e7f2eb;color:#075c35;padding:4px 8px;border-radius:30px;font-size:11px}
+@media(min-width:700px){nav{grid-template-columns:repeat(6,1fr)}}
+@media print{header,nav,.toolbar,.noPrint{display:none!important}body{background:white}.wrap{padding:0}.card{border:0;box-shadow:none}.slip{border:1px dashed #333}}
+</style></head>
+<body><header><div class="brand">BISP</div><div class="sub" id="subtitle">Appointment & Survey Management</div></header>
+<main class="wrap">
+<div class="toolbar"><span class="badge">Prototype · Sample data only</span><select id="language" style="max-width:140px"><option value="en">English</option><option value="ur">اردو</option></select></div>
+<nav class="noPrint">
+<button class="active" data-page="home">Dashboard</button><button data-page="new">Registration</button><button data-page="list">Appointments</button><button data-page="find">Search</button><button data-page="backup">Backup</button>
+</nav>
+<section id="home">
+<div class="grid">
+<div class="stat"><div>Daily capacity</div><div class="num">Unlimited</div></div>
+<div class="stat"><div data-k="days">Survey days</div><b data-k="weekdays">Monday–Friday</b></div>
+<div class="stat"><div data-k="saved">Saved on this device</div><div class="num" id="total">0</div></div>
+<div class="stat"><div data-k="next">Next token</div><div class="num" id="next">00001</div></div>
+</div>
+<div class="card"><h3 data-k="quick">Quick actions</h3><button onclick="page('new')" data-k="new">New registration</button></div>
+<div class="card"><h3 data-k="important">Important</h3><p class="hint" data-k="warning">This prototype saves records only in this browser/device. Do not enter real beneficiary information.</p></div>
+</section>
+
+<section id="new" class="hidden">
+<div class="card"><h3 data-k="new">New registration</h3><p class="hint" data-k="demo">Use sample data only in this prototype.</p>
+<label data-k="name">Beneficiary name</label><input id="nm" autocomplete="off">
+<label data-k="cnic">CNIC (13 digits)</label><input id="cn" inputmode="numeric" maxlength="15" placeholder="00000-0000000-0">
+<label data-k="phone">Mobile number</label><input id="ph" inputmode="tel" placeholder="03XXXXXXXXX">
+<label data-k="issue">Token issuance date</label><input id="issueDate" type="date">
+<label data-k="visit">Date of visit / appointment</label><input id="visitDate" type="date">
+<p class="hint" data-k="dateHint">Issue date defaults to today. Visit date is automatically set to the next survey working day and can be changed.</p>
+<p id="err" class="hint" style="color:#a12a2a"></p><button onclick="add()" data-k="save">Save & generate token</button>
+</div><div id="newSlip" class="card hidden"></div>
+</section>
+
+<section id="list" class="hidden"><div class="card">
+<h3 data-k="appointments">Appointment register</h3><div class="row"><input type="date" id="filter"><button class="alt" onclick="renderList()" data-k="filter">Filter</button></div>
+<div class="actions" style="margin:10px 0"><button onclick="downloadExcel()" data-k="excel">Download Excel</button><button class="alt" onclick="downloadCsv()" data-k="csv">Download CSV</button></div>
+<div style="overflow:auto"><table><thead><tr><th>Token</th><th>Name</th><th>CNIC</th><th>Issue date</th><th>Visit date</th><th>Status</th><th class="noPrint">Actions</th></tr></thead><tbody id="rows"></tbody></table></div><p id="empty" class="hint"></p>
+</div></section>
+
+<section id="find" class="hidden"><div class="card"><h3 data-k="search">Search beneficiary</h3><input id="q" placeholder="Token / name / CNIC"><button onclick="searchRecords()" data-k="search">Search</button><div id="results"></div></div></section>
+
+<section id="backup" class="hidden"><div class="card"><h3 data-k="backup">Backup & recovery</h3><p class="hint" data-k="backuptext">Export a JSON backup regularly and store it securely. Import to restore on this device.</p><div class="actions"><button onclick="exportBackup()" data-k="export">Export backup</button><button class="alt" onclick="document.getElementById('file').click()" data-k="import">Import backup</button></div><input id="file" type="file" accept="application/json" class="hidden"><p id="msg" class="hint"></p><p class="hint" data-k="cloud">Automatic cloud and office-computer backups are not active in this prototype.</p></div></section>
+
+
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+const KEY='bisp_demo_records_v2';let records=JSON.parse(localStorage.getItem(KEY)||'[]'),lang='en';
+const T={
+en:{capacity:'Daily capacity',days:'Survey days',weekdays:'Monday–Friday',saved:'Saved on this device',next:'Next token',quick:'Quick actions',new:'New registration',important:'Important',warning:'This prototype stores records only in this browser/device. Do not enter real beneficiary information.',demo:'Use sample data only in this prototype.',name:'Beneficiary name',cnic:'CNIC (13 digits)',phone:'Mobile number',issue:'Token issuance date',visit:'Date of visit / appointment',dateHint:'Issue date defaults to today. Visit date is automatically set to the next survey working day and can be changed.',save:'Save & generate token',appointments:'Appointment register',filter:'Filter',excel:'Download Excel (.xlsx)',csv:'Download CSV',search:'Search beneficiary',backup:'Backup & recovery',backuptext:'Export a JSON backup regularly and store it securely. Import to restore on this device.',export:'Export backup',import:'Import backup',cloud:'Automatic cloud and office-computer backups are not active in this prototype.',staff:'Staff management',stafftext:'Production version will include 5–10 individual staff accounts, roles and audit history. Shared multi-device login is not active here.',invalid:'Enter name, 13-digit CNIC, mobile number and both dates.',duplicate:'This CNIC already exists in demo records.',weekend:'Visit date must be Monday to Friday.',full:'This date already has 65 appointments. Choose another date.',booked:'Appointment confirmed',date:'Appointment date',print:'Print appointment slip',edit:'Edit',updated:'Record updated.',empty:'No records found.',note:'اس ٹوکن کی کوئی فیس نہیں ہے۔ شکایت کی صورت میں دفتر سے رابطہ کریں۔',qr:'Scan this QR code to view token and appointment date.',backupDone:'Backup downloaded.',restore:'Backup restored.',badfile:'Invalid backup file.',notExcel:'Excel library is unavailable. Use Download CSV instead.'},
+ur:{capacity:'روزانہ گنجائش',days:'سروے کے دن',weekdays:'پیر تا جمعہ',saved:'اس ڈیوائس میں محفوظ',next:'اگلا ٹوکن',quick:'فوری کام',new:'نئی رجسٹریشن',important:'اہم ہدایت',warning:'یہ نمونہ صرف اسی براؤزر/ڈیوائس میں ریکارڈ محفوظ کرتا ہے۔ اصل مستحقہ کی معلومات درج نہ کریں۔',demo:'صرف فرضی معلومات استعمال کریں۔',name:'مستحقہ کا نام',cnic:'شناختی کارڈ نمبر (13 ہندسے)',phone:'موبائل نمبر',issue:'ٹوکن جاری کرنے کی تاریخ',visit:'آنے / اپائنٹمنٹ کی تاریخ',dateHint:'ٹوکن جاری کرنے کی تاریخ آج کی ہوگی۔ آنے کی تاریخ تبدیل کی جا سکتی ہے؛ تاریخ منتخب کرتے وقت روزانہ 65 افراد کی حد چیک ہوگی۔',save:'محفوظ کریں اور ٹوکن بنائیں',appointments:'اپائنٹمنٹ رجسٹر',filter:'تلاش / فلٹر',excel:'ایکسِل فائل ڈاؤن لوڈ کریں',csv:'CSV ڈاؤن لوڈ کریں',search:'مستحقہ تلاش کریں',backup:'بیک اپ اور بحالی',backuptext:'بیک اپ فائل باقاعدگی سے نکال کر محفوظ رکھیں۔ اسی ڈیوائس پر ریکارڈ بحال کرنے کے لیے امپورٹ کریں۔',export:'بیک اپ نکالیں',import:'بیک اپ بحال کریں',cloud:'خودکار کلاؤڈ اور آفس کمپیوٹر بیک اپ اس نمونے میں فعال نہیں۔',staff:'اسٹاف مینجمنٹ',stafftext:'اصل ورژن میں 5–10 الگ اکاؤنٹس، اختیارات اور آڈٹ ہسٹری ہوگی۔ مشترکہ ملٹی ڈیوائس لاگ اِن ابھی فعال نہیں۔',invalid:'نام، 13 ہندسوں کا شناختی کارڈ، موبائل اور دونوں تاریخیں درج کریں۔',duplicate:'یہ شناختی کارڈ پہلے سے موجود ہے۔',weekend:'آنے کی تاریخ پیر سے جمعہ کے درمیان ہونی چاہیے۔',full:'اس تاریخ کے 65 ٹوکن مکمل ہیں۔ دوسری تاریخ منتخب کریں۔',booked:'اپائنٹمنٹ کنفرم ہوگئی',date:'اپائنٹمنٹ کی تاریخ',print:'ٹوکن پرنٹ کریں',edit:'تبدیل کریں',updated:'ریکارڈ تبدیل ہوگیا۔',empty:'کوئی ریکارڈ نہیں ملا۔',note:'اس ٹوکن کی کوئی فیس نہیں ہے۔ شکایت کی صورت میں دفتر سے رابطہ کریں۔',qr:'ٹوکن اور اپائنٹمنٹ کی تاریخ دیکھنے کے لیے QR کوڈ اسکین کریں۔',backupDone:'بیک اپ ڈاؤن لوڈ ہوگیا۔',restore:'بیک اپ بحال ہوگیا۔',badfile:'غلط بیک اپ فائل۔',notExcel:'ایکسِل لائبریری دستیاب نہیں؛ CSV ڈاؤن لوڈ کریں۔'}
+};
+function t(k){return T[lang][k]||k}
+function page(id){document.querySelectorAll('main section').forEach(s=>s.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));if(id==='list')renderList()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>page(b.dataset.page));
+function persist(){localStorage.setItem(KEY,JSON.stringify(records));refresh()}
+function token(n){return 'BISP-'+String(n).padStart(5,'0')}
+function isoToday(){let d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function formatDate(s){return s?new Date(s+'T12:00:00').toLocaleDateString(lang==='ur'?'ur-PK':'en-GB',{day:'2-digit',month:'long',year:'numeric'}):''}
+function isWeekday(s){let d=new Date(s+'T12:00:00').getDay();return d>=1&&d<=5}
+function countDate(s,excludeToken=null){return records.filter(r=>r.visitDate===s&&r.token!==excludeToken).length}
+function dateValidation(s,exclude=null){if(!s)return t('invalid');if(s<isoToday())return 'Past dates are not allowed.';if(!isWeekday(s))return t('weekend');return ''}
+function add(){let name=document.getElementById('nm').value.trim(),cnic=document.getElementById('cn').value.replace(/\D/g,''),phone=document.getElementById('ph').value.trim(),issue=document.getElementById('issueDate').value,visit=document.getElementById('visitDate').value,err=document.getElementById('err');err.textContent='';
+if(!name||cnic.length!==13||!phone||!issue||!visit){err.textContent=t('invalid');return}
+if(records.some(r=>r.cnic===cnic)){err.textContent=t('duplicate');return}
+let v=dateValidation(visit);if(v){err.textContent=v;return}
+let serial=records.length?Math.max(...records.map(r=>r.serial))+1:1;
+let r={serial,token:token(serial),name,cnic,phone,issueDate:issue,visitDate:visit,status:'Booked',created:new Date().toISOString()};
+records.push(r);persist();document.getElementById('newSlip').classList.remove('hidden');document.getElementById('newSlip').innerHTML=slipHTML(r);['nm','cn','ph'].forEach(id=>document.getElementById(id).value='');}
+function slipHTML(r){let qrText=`BISP Token: ${r.token}\nIssue date: ${r.issueDate}\nVisit date: ${r.visitDate}`;return `<div class="slip" id="slip-${r.token}"><h2>BISP</h2><p style="text-align:center;font-weight:bold">${t('booked')}</p><hr><p><b>Token:</b> ${r.token}</p><p><b>${t('name')}:</b> ${esc(r.name)}</p><p><b>CNIC:</b> ${esc(r.cnic)}</p><p><b>${t('issue')}:</b> ${formatDate(r.issueDate)}</p><p><b>${t('date')}:</b> <strong>${formatDate(r.visitDate)}</strong></p><div class="qr" id="qr-${r.token}"></div><p class="hint" style="text-align:center">${t('qr')}</p><div class="urdu-note">${T.ur.note}</div></div><div class="actions noPrint"><button onclick="printSlip('${r.token}')">${t('print')}</button></div>`}
+function drawQR(r){let el=document.getElementById('qr-'+r.token);if(!el)return;el.innerHTML='';if(window.QRCode)new QRCode(el,{text:`BISP Token: ${r.token}\nIssue date: ${r.issueDate}\nVisit date: ${r.visitDate}`,width:128,height:128});else el.textContent='QR library needs internet access.'}
+function showSlip(r,target){target.innerHTML=slipHTML(r);drawQR(r)}
+async function printSlip(tok){
+ let r=records.find(x=>x.token===tok);if(!r)return;
+ drawQR(r);await new Promise(resolve=>setTimeout(resolve,350));
+ let qr=document.getElementById('qr-'+r.token),qrImage=qr?.querySelector('img')?.src;
+ if(!qrImage){let c=qr?.querySelector('canvas');if(c)qrImage=c.toDataURL('image/png');}
+ let w=window.open('','_blank','width=430,height=700');if(!w){alert('Please allow pop-ups to print the appointment slip.');return;}
+ let html=slipHTML(r).replace(/<div class="actions noPrint">[\s\S]*$/,'');
+ html=html.replace(`<div class="qr" id="qr-${r.token}"></div>`,`<div class="qr">${qrImage?`<img style="width:128px;height:128px" src="${qrImage}">`:'QR unavailable. Connect to internet once and reload.'}</div>`);
+ w.document.write(`<html><head><title>BISP Token</title><style>body{font:14px Arial;padding:12px}.slip{border:1px dashed #555;padding:14px;max-width:340px;margin:auto}.slip h2{text-align:center;color:#087a45}.urdu-note{direction:rtl;text-align:center;line-height:1.8;border-top:1px solid #ddd;padding-top:8px;margin-top:10px}.qr{text-align:center;margin:10px}</style></head><body>${html}<script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);w.document.close();
+}
+function renderList(){let f=document.getElementById('filter').value,a=records.filter(r=>!f||r.visitDate===f).sort((x,y)=>x.visitDate.localeCompare(y.visitDate)||x.serial-y.serial);document.getElementById('rows').innerHTML=a.map(r=>`<tr><td>${r.token}</td><td>${esc(r.name)}</td><td>${esc(r.cnic)}</td><td>${r.issueDate}</td><td>${r.visitDate}</td><td>${r.status}</td><td class="noPrint"><button class="alt" onclick="editRecord('${r.token}')">${t('edit')}</button><button onclick="printSlip('${r.token}')">${t('print')}</button></td></tr>`).join('');document.getElementById('empty').textContent=a.length?'':t('empty')}
+function editRecord(tok){let r=records.find(x=>x.token===tok);if(!r)return;let v=prompt(t('date')+' (YYYY-MM-DD)',r.visitDate);if(v===null)return;let e=dateValidation(v,tok);if(e){alert(e);return}r.visitDate=v;persist();renderList();alert(t('updated'))}
+function searchRecords(){let q=document.getElementById('q').value.toLowerCase(),a=records.filter(r=>r.token.toLowerCase().includes(q)||r.name.toLowerCase().includes(q)||r.cnic.includes(q));let el=document.getElementById('results');el.innerHTML='';if(!a.length){el.textContent=t('empty');return}a.forEach(r=>{let d=document.createElement('div');d.className='card';el.appendChild(d);showSlip(r,d)})}
+function rowsForExport(){return records.map(r=>({'Token Number':r.token,'Beneficiary Name':r.name,'CNIC':r.cnic,'Mobile Number':r.phone,'Token Issuance Date':r.issueDate,'Date of Visit':r.visitDate,'Status':r.status,'Created At':r.created}))}
+function downloadExcel(){if(!window.XLSX){alert(t('notExcel'));return}let ws=XLSX.utils.json_to_sheet(rowsForExport()),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'BISP Appointments');XLSX.writeFile(wb,'BISP_Appointment_Register.xlsx')}
+function downloadCsv(){let rows=rowsForExport(),keys=Object.keys(rows[0]||{'Token Number':''}),csv=[keys.join(','),...rows.map(r=>keys.map(k=>'"'+String(r[k]??'').replace(/"/g,'""')+'"').join(','))].join('\r\n');let b=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='BISP_Appointment_Register.csv';a.click();URL.revokeObjectURL(a.href)}
+function exportBackup(){let b=new Blob([JSON.stringify({app:'BISP',version:2,exported:new Date().toISOString(),records},null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='BISP_Backup_'+isoToday()+'.json';a.click();URL.revokeObjectURL(a.href);document.getElementById('msg').textContent=t('backupDone')}
+document.getElementById('file').onchange=async e=>{try{let o=JSON.parse(await e.target.files[0].text());if(!Array.isArray(o.records))throw 0;if(confirm('Replace current demo records with backup?')){records=o.records;persist();document.getElementById('msg').textContent=t('restore')}}catch{document.getElementById('msg').textContent=t('badfile')}e.target.value=''}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function refresh(){document.getElementById('total').textContent=records.length;document.getElementById('next').textContent=String(records.length+1).padStart(5,'0')}
+function setLang(v){lang=v;document.documentElement.dir=v==='ur'?'rtl':'ltr';document.querySelectorAll('[data-k]').forEach(e=>e.textContent=t(e.dataset.k));document.getElementById('subtitle').textContent=v==='ur'?'اپائنٹمنٹ اور سروے مینجمنٹ':'Appointment & Survey Management';refresh()}
+document.getElementById('language').onchange=e=>setLang(e.target.value);
+function nextSurveyDay(){let d=new Date(isoToday()+'T12:00:00');while(d.getDay()===0||d.getDay()===6)d.setDate(d.getDate()+1);return d.toISOString().slice(0,10)}
+document.getElementById('issueDate').value=isoToday();document.getElementById('visitDate').value=nextSurveyDay();
+document.getElementById('visitDate').min=isoToday();
+document.getElementById('issueDate').addEventListener('change',()=>{let d=document.getElementById('issueDate').value;document.getElementById('visitDate').value=d;let x=new Date(d+'T12:00:00');while(x.getDay()===0||x.getDay()===6)x.setDate(x.getDate()+1);document.getElementById('visitDate').value=x.toISOString().slice(0,10);});
+setLang('en');
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(err=>console.warn('Offline support registration failed',err)));}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>page(b.dataset.page));
+</script></body></html>
